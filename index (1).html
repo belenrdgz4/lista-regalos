@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>Lista de Regalos</title>
+
+<!-- ============================================================= -->
+<!--  PASO IMPORTANTE: PEGÁ ACÁ TU CONFIGURACIÓN DE FIREBASE        -->
+<!--  Reemplazá TODO lo que está dentro de las llaves { ... } por   -->
+<!--  lo que te da Firebase. Mirá el instructivo, sección 3.        -->
+<!-- ============================================================= -->
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyBAIac8987dP5Z1tSCtQ798PPskdTnvtgg",
+  authDomain: "lista-regalos-41b76.firebaseapp.com",
+  databaseURL: "https://lista-regalos-41b76-default-rtdb.firebaseio.com",
+  projectId: "lista-regalos-41b76",
+  storageBucket: "lista-regalos-41b76.firebasestorage.app",
+  messagingSenderId: "773966005287",
+  appId: "1:773966005287:web:6a4b20075654459d053a02"
+};
+</script>
+<!-- ============================================================= -->
+<!--  No toques nada más abajo salvo que quieras cambiar el código  -->
+<!--  de dueña (buscá la línea  const OWNER_CODE = "1965";)         -->
+<!-- ============================================================= -->
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+<style>
+  :root {
+    --cream: #FBF5EE;
+    --card: #FFFFFF;
+    --coral: #E07A5F;
+    --coral-soft: #EBA793;
+    --pink: #F2D2C9;
+    --pink-bg: #FBE9E3;
+    --taupe: #B9A493;
+    --brown: #5B4A3F;
+    --brown-soft: #8A7766;
+    --line: #ECE0D6;
+    --green: #7C9A75;
+    --shadow: 0 6px 22px rgba(91, 74, 63, 0.10);
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--cream);
+    color: var(--brown);
+    line-height: 1.45;
+  }
+  #root { max-width: 560px; margin: 0 auto; padding: 0 16px 60px; }
+
+  .topbar {
+    position: sticky; top: 0; z-index: 20;
+    background: var(--cream);
+    padding: 20px 0 12px;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 18px;
+  }
+  .title-row { display: flex; align-items: center; gap: 10px; }
+  .title-row h1 { font-size: 22px; margin: 0; font-weight: 800; letter-spacing: -0.3px; flex: 1; }
+  .gift-emoji { font-size: 22px; }
+  .subtitle { font-size: 13px; color: var(--brown-soft); margin: 4px 0 0; }
+
+  .role-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 12px; font-weight: 700; padding: 5px 11px; border-radius: 999px;
+    background: var(--pink-bg); color: var(--coral); border: 1px solid var(--pink);
+  }
+  .role-pill.owner { background: #EEF3EC; color: var(--green); border-color: #D7E3D2; }
+
+  .card {
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: 18px; box-shadow: var(--shadow);
+    overflow: hidden; margin-bottom: 14px;
+  }
+  .gift-img { width: 100%; aspect-ratio: 16/10; object-fit: cover; display: block; background: var(--pink-bg); cursor: zoom-in; }
+  .gift-body { padding: 14px 16px 16px; }
+  .gift-name { font-size: 17px; font-weight: 700; margin: 0 0 4px; }
+  .gift-name.taken { text-decoration: line-through; color: var(--brown-soft); }
+
+  .gift-link {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 13px; color: var(--coral); text-decoration: none; font-weight: 600; margin-top: 2px;
+  }
+
+  .badge-taken {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 13px; font-weight: 700; color: var(--green);
+    background: #EEF3EC; padding: 6px 12px; border-radius: 999px; margin-top: 10px;
+  }
+
+  button { font-family: inherit; cursor: pointer; border: none; }
+  .btn {
+    width: 100%; padding: 13px; border-radius: 12px; font-size: 15px; font-weight: 700;
+    margin-top: 12px; transition: transform .05s ease;
+  }
+  .btn:active { transform: scale(0.98); }
+  .btn-primary { background: var(--coral); color: #fff; }
+  .btn-soft { background: var(--pink-bg); color: var(--coral); }
+  .btn-ghost { background: transparent; color: var(--brown-soft); border: 1px solid var(--line); }
+  .btn-danger { background: #F6E4E0; color: #C25B45; }
+  .btn-row { display: flex; gap: 10px; }
+  .btn-row .btn { margin-top: 12px; }
+
+  .fab {
+    position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%);
+    background: var(--coral); color: #fff; font-weight: 800; font-size: 15px;
+    padding: 14px 24px; border-radius: 999px; box-shadow: 0 8px 24px rgba(224,122,95,.45);
+    z-index: 30; display: inline-flex; align-items: center; gap: 8px;
+  }
+
+  .empty { text-align: center; padding: 40px 20px; color: var(--brown-soft); }
+  .empty .big { font-size: 40px; margin-bottom: 10px; }
+
+  /* Sheet / modal */
+  .overlay {
+    position: fixed; inset: 0; background: rgba(91,74,63,.45);
+    z-index: 50; display: flex; align-items: flex-end; justify-content: center;
+  }
+  .sheet {
+    background: var(--cream); width: 100%; max-width: 560px;
+    border-radius: 22px 22px 0 0; padding: 8px 18px 28px;
+    max-height: 92vh; overflow-y: auto;
+  }
+  .sheet-handle { width: 42px; height: 5px; background: var(--line); border-radius: 999px; margin: 8px auto 16px; }
+  .sheet h2 { font-size: 19px; margin: 0 0 16px; }
+  label { display: block; font-size: 13px; font-weight: 700; color: var(--brown-soft); margin: 14px 0 6px; }
+  input[type=text], input[type=url], input[type=password] {
+    width: 100%; padding: 13px 14px; border-radius: 12px; border: 1px solid var(--line);
+    background: #fff; font-size: 16px; color: var(--brown); font-family: inherit;
+  }
+  input:focus { outline: 2px solid var(--coral-soft); border-color: var(--coral-soft); }
+  .photo-pick {
+    border: 2px dashed var(--pink); border-radius: 14px; padding: 20px; text-align: center;
+    color: var(--coral); font-weight: 600; background: var(--pink-bg);
+  }
+  .photo-preview { width: 100%; aspect-ratio: 16/10; object-fit: cover; border-radius: 14px; }
+
+  .setup {
+    margin: 40px 0; padding: 24px; background: #fff; border: 1px solid var(--line);
+    border-radius: 18px; box-shadow: var(--shadow);
+  }
+  .setup h2 { margin-top: 0; color: var(--coral); }
+  .setup code { background: var(--pink-bg); padding: 2px 6px; border-radius: 6px; font-size: 13px; }
+
+  .lightbox {
+    position: fixed; inset: 0; background: rgba(0,0,0,.88); z-index: 60;
+    display: flex; align-items: center; justify-content: center; padding: 20px;
+  }
+  .lightbox img { max-width: 100%; max-height: 100%; border-radius: 12px; }
+
+  .icon-btn { background: var(--pink-bg); color: var(--coral); border-radius: 10px; padding: 9px; display: inline-flex; }
+  .small-muted { font-size: 12px; color: var(--brown-soft); text-align: center; margin-top: 18px; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel" data-presets="react">
+const { useState, useEffect, useRef } = React;
+
+const OWNER_CODE = "1965";   // <-- cambiá este número si querés otro código de dueña
+
+// ---------- Iconos simples (SVG inline) ----------
+const I = {
+  link: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg>,
+  check: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>,
+  plus: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>,
+  key: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><circle cx="7.5" cy="15.5" r="4.5"/><path d="M10.5 12.5 19 4l2 2-2 2 2 2-3 1"/></svg>,
+  eye: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>,
+};
+
+// ---------- Compresión de fotos ----------
+function compressImage(file, maxW = 900, quality = 0.72) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const scale = Math.min(1, maxW / img.width);
+        const w = Math.round(img.width * scale);
+        const h = Math.round(img.height * scale);
+        const canvas = document.createElement("canvas");
+        canvas.width = w; canvas.height = h;
+        canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+function genId() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+}
+function normalizeLink(url) {
+  const u = (url || "").trim();
+  if (!u) return "";
+  return /^https?:\/\//i.test(u) ? u : "https://" + u;
+}
+
+// ---------- App ----------
+function App() {
+  const [data, setData] = useState(null);   // { title, gifts: {} }
+  const [loaded, setLoaded] = useState(false);
+  const [isOwner, setIsOwner] = useState(false);
+
+  const [showAdd, setShowAdd] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const [askCode, setAskCode] = useState(false);
+  const [confirmId, setConfirmId] = useState(null);
+  const [lightbox, setLightbox] = useState(null);
+
+  useEffect(() => {
+    if (!window.__dbRef) return;
+    const ref = window.__dbRef;
+    const handler = ref.on("value", (snap) => {
+      const v = snap.val() || {};
+      setData({ title: v.title || "Lista de Regalos", gifts: v.gifts || {} });
+      setLoaded(true);
+    }, () => setLoaded(true));
+    return () => ref.off("value", handler);
+  }, []);
+
+  if (!window.__dbReady) return <SetupScreen />;
+  if (!loaded || !data) return <div className="empty"><div className="big">🎁</div>Cargando lista…</div>;
+
+  const gifts = Object.entries(data.gifts)
+    .map(([id, g]) => ({ id, ...g }))
+    .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+
+  const ref = window.__dbRef;
+
+  const saveGift = (g) => {
+    const id = g.id || genId();
+    const payload = {
+      name: g.name.trim(),
+      link: normalizeLink(g.link),
+      img: g.img || "",
+      reserved: g.reserved || false,
+      createdAt: g.createdAt || Date.now(),
+    };
+    ref.child("gifts").child(id).set(payload);
+    setShowAdd(false); setEditing(null);
+  };
+  const deleteGift = (id) => { ref.child("gifts").child(id).remove(); setEditing(null); };
+  const reserve = (id, val) => ref.child("gifts").child(id).child("reserved").set(val);
+
+  return (
+    <div>
+      <div className="topbar">
+        <div className="title-row">
+          <span className="gift-emoji">🎁</span>
+          <h1>{data.title}</h1>
+        </div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
+          <p className="subtitle">Marcá lo que vayas a regalar. Es anónimo 🤍</p>
+          {isOwner
+            ? <span className="role-pill owner">{I.key} Dueña</span>
+            : <span className="role-pill" onClick={() => setAskCode(true)} style={{ cursor: "pointer" }}>{I.eye} Invitado</span>}
+        </div>
+      </div>
+
+      {gifts.length === 0 && (
+        <div className="empty">
+          <div className="big">🎀</div>
+          {isOwner ? "Todavía no cargaste regalos. Tocá el botón de abajo para empezar." : "Todavía no hay regalos en la lista."}
+        </div>
+      )}
+
+      {gifts.map((g) => (
+        <div className="card" key={g.id}>
+          {g.img && <img className="gift-img" src={g.img} alt={g.name} onClick={() => setLightbox(g.img)} />}
+          <div className="gift-body">
+            <p className={"gift-name" + (g.reserved ? " taken" : "")}>{g.name}</p>
+            {g.link && <a className="gift-link" href={g.link} target="_blank" rel="noopener noreferrer">{I.link} Ver dónde comprarlo</a>}
+
+            {g.reserved && <div className="badge-taken">{I.check} Ya alguien lo va a regalar</div>}
+
+            {!isOwner && !g.reserved && confirmId !== g.id && (
+              <button className="btn btn-primary" onClick={() => setConfirmId(g.id)}>Yo lo regalo</button>
+            )}
+            {!isOwner && !g.reserved && confirmId === g.id && (
+              <div className="btn-row">
+                <button className="btn btn-primary" onClick={() => { reserve(g.id, true); setConfirmId(null); }}>Sí, confirmar</button>
+                <button className="btn btn-ghost" onClick={() => setConfirmId(null)}>Cancelar</button>
+              </div>
+            )}
+
+            {isOwner && (
+              <div className="btn-row">
+                <button className="btn btn-soft" onClick={() => setEditing(g)}>Editar</button>
+                {g.reserved && <button className="btn btn-ghost" onClick={() => reserve(g.id, false)}>Liberar</button>}
+              </div>
+            )}
+          </div>
+        </div>
+      ))}
+
+      {isOwner && (
+        <button className="fab" onClick={() => setShowAdd(true)}>{I.plus} Agregar regalo</button>
+      )}
+
+      {!isOwner && gifts.length > 0 && (
+        <p className="small-muted">¿Sos la organizadora? Tocá “Invitado” arriba para entrar en modo dueña.</p>
+      )}
+
+      {(showAdd || editing) && (
+        <GiftSheet
+          gift={editing}
+          onClose={() => { setShowAdd(false); setEditing(null); }}
+          onSave={saveGift}
+          onDelete={editing ? () => deleteGift(editing.id) : null}
+        />
+      )}
+
+      {askCode && (
+        <CodeSheet
+          onClose={() => setAskCode(false)}
+          onUnlock={() => { setIsOwner(true); setAskCode(false); }}
+          onLock={() => { setIsOwner(false); setAskCode(false); }}
+          isOwner={isOwner}
+        />
+      )}
+
+      {lightbox && (
+        <div className="lightbox" onClick={() => setLightbox(null)}><img src={lightbox} alt="" /></div>
+      )}
+    </div>
+  );
+}
+
+// ---------- Hoja para agregar / editar regalo ----------
+function GiftSheet({ gift, onClose, onSave, onDelete }) {
+  const [name, setName] = useState(gift?.name || "");
+  const [link, setLink] = useState(gift?.link || "");
+  const [img, setImg] = useState(gift?.img || "");
+  const [busy, setBusy] = useState(false);
+  const fileRef = useRef();
+
+  const pickPhoto = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setBusy(true);
+    try { setImg(await compressImage(file)); } catch { alert("No se pudo procesar la foto."); }
+    setBusy(false);
+  };
+
+  const save = () => {
+    if (!name.trim()) { alert("Ponele un nombre al regalo."); return; }
+    onSave({ ...(gift || {}), name, link, img });
+  };
+
+  return (
+    <div className="overlay" onClick={onClose}>
+      <div className="sheet" onClick={(e) => e.stopPropagation()}>
+        <div className="sheet-handle" />
+        <h2>{gift ? "Editar regalo" : "Agregar regalo"}</h2>
+
+        <label>Nombre del regalo</label>
+        <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ej: Juego de mate" />
+
+        <label>Link para comprarlo (opcional)</label>
+        <input type="url" value={link} onChange={(e) => setLink(e.target.value)} placeholder="Pegá un link de Mercado Libre, etc." />
+
+        <label>Foto (opcional)</label>
+        {img
+          ? <div onClick={() => fileRef.current.click()}><img className="photo-preview" src={img} alt="" /></div>
+          : <div className="photo-pick" onClick={() => fileRef.current.click()}>{busy ? "Procesando…" : "📷 Tocá para elegir una foto"}</div>}
+        <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }} onChange={pickPhoto} />
+
+        <button className="btn btn-primary" onClick={save} disabled={busy}>{gift ? "Guardar cambios" : "Agregar a la lista"}</button>
+        {onDelete && <button className="btn btn-danger" onClick={() => { if (confirm("¿Borrar este regalo?")) onDelete(); }}>Borrar regalo</button>}
+        <button className="btn btn-ghost" onClick={onClose}>Cancelar</button>
+      </div>
+    </div>
+  );
+}
+
+// ---------- Hoja del código de dueña ----------
+function CodeSheet({ onClose, onUnlock, onLock, isOwner }) {
+  const [code, setCode] = useState("");
+  const [err, setErr] = useState(false);
+
+  if (isOwner) {
+    return (
+      <div className="overlay" onClick={onClose}>
+        <div className="sheet" onClick={(e) => e.stopPropagation()}>
+          <div className="sheet-handle" />
+          <h2>Modo dueña</h2>
+          <p className="subtitle">Estás en modo dueña: podés agregar, editar y borrar regalos.</p>
+          <button className="btn btn-ghost" onClick={onLock}>Salir del modo dueña</button>
+          <button className="btn btn-soft" onClick={onClose}>Seguir como dueña</button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="overlay" onClick={onClose}>
+      <div className="sheet" onClick={(e) => e.stopPropagation()}>
+        <div className="sheet-handle" />
+        <h2>Modo dueña</h2>
+        <p className="subtitle">Ingresá el código para poder editar la lista. Los invitados no lo necesitan.</p>
+        <label>Código</label>
+        <input
+          type="password" inputMode="numeric" value={code}
+          onChange={(e) => { setCode(e.target.value); setErr(false); }}
+          placeholder="• • • •"
+          style={err ? { borderColor: "#C25B45" } : {}}
+        />
+        {err && <p style={{ color: "#C25B45", fontSize: 13, marginTop: 8 }}>Código incorrecto.</p>}
+        <button className="btn btn-primary" onClick={() => code === OWNER_CODE ? onUnlock() : setErr(true)}>Entrar</button>
+        <button className="btn btn-ghost" onClick={onClose}>Cancelar</button>
+      </div>
+    </div>
+  );
+}
+
+// ---------- Pantalla si falta configurar Firebase ----------
+function SetupScreen() {
+  return (
+    <div className="setup">
+      <h2>⚙️ Falta un paso</h2>
+      <p>La app está casi lista, pero todavía no pegaste tu configuración de <b>Firebase</b>.</p>
+      <p>Abrí el archivo <code>index.html</code>, buscá arriba de todo el bloque que dice <code>firebaseConfig</code> y reemplazá los <code>"PEGA-ACA..."</code> por los datos reales de tu proyecto.</p>
+      <p>Está todo explicado paso a paso en el instructivo, en la <b>sección 3</b>.</p>
+    </div>
+  );
+}
+
+// ---------- Arranque ----------
+function boot() {
+  try {
+    if (firebaseConfig.apiKey && !firebaseConfig.apiKey.includes("PEGA-ACA")) {
+      firebase.initializeApp(firebaseConfig);
+      window.__dbRef = firebase.database().ref("lista");
+      window.__dbReady = true;
+    } else {
+      window.__dbReady = false;
+    }
+  } catch (e) {
+    window.__dbReady = false;
+    console.error(e);
+  }
+  ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+}
+boot();
+</script>
+</body>
+</html>
