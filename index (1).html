@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>Lista de Regalos</title>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --cream:#FBF5EE; --paper:#FFFFFF; --coral:#DD7253; --coral-deep:#C25B40;
+    --pink:#F1D2C8; --pink-bg:#FBE9E3; --blush:#F7EDE6;
+    --taupe:#B9A493; --brown:#503F35; --brown-soft:#8A7868;
+    --line:#EADDD2; --sage:#7B9A72; --sage-bg:#EEF3EB;
+    --shadow:0 8px 28px rgba(80,63,53,.10); --shadow-sm:0 3px 12px rgba(80,63,53,.07);
+    --serif:"Fraunces",Georgia,"Times New Roman",serif;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;}
+  body{font-family:var(--sans);background:var(--cream);color:var(--brown);line-height:1.5;-webkit-font-smoothing:antialiased;}
+  #root{max-width:540px;margin:0 auto;padding:0 16px 96px;}
+  @media (prefers-reduced-motion:no-preference){
+    .card,.hero{animation:rise .5s cubic-bezier(.2,.7,.3,1) both;}
+    @keyframes rise{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
+  }
+
+  /* Topbar */
+  .topbar{position:sticky;top:0;z-index:20;background:rgba(251,245,238,.88);backdrop-filter:blur(8px);
+    display:flex;align-items:center;justify-content:space-between;padding:13px 2px 12px;border-bottom:1px solid var(--line);}
+  .brand{font-family:var(--serif);font-weight:600;font-size:15px;letter-spacing:.2px;display:flex;align-items:center;gap:7px;color:var(--brown);}
+  .role-pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;padding:7px 13px;border-radius:999px;
+    background:var(--pink-bg);color:var(--coral-deep);border:1px solid var(--pink);cursor:pointer;white-space:nowrap;}
+  .role-pill.owner{background:var(--sage-bg);color:var(--sage);border-color:#D6E2D0;}
+
+  /* Hero */
+  .hero{text-align:center;padding:30px 8px 24px;}
+  .hero-title{font-family:var(--serif);font-weight:600;font-size:33px;line-height:1.1;letter-spacing:-.4px;margin:0;color:var(--brown);
+    display:inline-flex;align-items:flex-start;gap:8px;}
+  .edit-title{background:none;border:none;color:var(--taupe);cursor:pointer;padding:4px;margin-top:4px;}
+  .edit-title:hover{color:var(--coral);}
+  .hero-rule{display:flex;align-items:center;justify-content:center;gap:12px;margin:16px 0 14px;color:var(--pink);}
+  .hero-rule::before,.hero-rule::after{content:"";height:1px;width:54px;background:var(--line);}
+  .hero-rule span{font-size:15px;}
+  .hero-sub{font-size:14px;color:var(--brown-soft);margin:0 auto;max-width:340px;}
+  .chips{display:flex;justify-content:center;gap:10px;margin-top:18px;flex-wrap:wrap;}
+  .chip{font-size:12.5px;font-weight:600;padding:7px 14px;border-radius:999px;background:var(--paper);border:1px solid var(--line);color:var(--brown-soft);box-shadow:var(--shadow-sm);}
+  .chip b{color:var(--coral-deep);font-weight:800;}
+  .chip.done b{color:var(--sage);}
+
+  /* Section heads */
+  .sec-head{display:flex;align-items:center;gap:12px;margin:30px 4px 14px;}
+  .eyebrow{font-size:11.5px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;color:var(--taupe);}
+  .sec-head .bar{flex:1;height:1px;background:var(--line);}
+  .sec-count{font-size:12px;font-weight:700;color:var(--brown-soft);background:var(--blush);padding:3px 10px;border-radius:999px;}
+
+  /* Card */
+  .card{background:var(--paper);border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow);overflow:hidden;margin-bottom:14px;}
+  .card.done{opacity:.82;}
+  .gift-img{width:100%;aspect-ratio:16/10;object-fit:cover;display:block;background:var(--pink-bg);cursor:zoom-in;}
+  .gift-body{padding:15px 17px 17px;}
+  .gift-name{font-family:var(--serif);font-size:19px;font-weight:600;letter-spacing:-.2px;margin:0 0 2px;}
+  .gift-link{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--coral-deep);text-decoration:none;font-weight:600;margin-top:4px;}
+
+  .qty-row{display:flex;align-items:center;gap:10px;margin-top:12px;}
+  .pips{display:inline-flex;gap:5px;}
+  .pip{width:11px;height:11px;border-radius:50%;background:var(--pink);box-shadow:inset 0 0 0 1px rgba(0,0,0,.03);}
+  .pip.on{background:var(--coral);}
+  .qty-text{font-size:13px;font-weight:600;color:var(--brown-soft);}
+  .qty-text b{color:var(--coral-deep);}
+
+  .badge-done{display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:700;color:var(--sage);
+    background:var(--sage-bg);padding:7px 13px;border-radius:999px;margin-top:12px;}
+
+  button{font-family:inherit;cursor:pointer;border:none;}
+  .btn{width:100%;padding:13px;border-radius:13px;font-size:15px;font-weight:700;margin-top:13px;transition:transform .05s ease;}
+  .btn:active{transform:scale(.985);}
+  .btn-primary{background:var(--coral);color:#fff;box-shadow:0 4px 14px rgba(221,114,83,.32);}
+  .btn-soft{background:var(--pink-bg);color:var(--coral-deep);}
+  .btn-ghost{background:transparent;color:var(--brown-soft);border:1px solid var(--line);}
+  .btn-danger{background:#F6E4E0;color:var(--coral-deep);}
+  .btn-row{display:flex;gap:10px;}
+
+  .fab{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--coral);color:#fff;font-weight:800;font-size:15px;
+    padding:15px 26px;border-radius:999px;box-shadow:0 10px 26px rgba(221,114,83,.45);z-index:30;display:inline-flex;align-items:center;gap:8px;}
+
+  .empty{text-align:center;padding:46px 22px;color:var(--brown-soft);}
+  .empty .big{font-size:42px;margin-bottom:12px;}
+  .empty.mini{padding:22px;font-size:14px;background:var(--paper);border:1px dashed var(--line);border-radius:18px;}
+  .small-muted{font-size:12.5px;color:var(--brown-soft);text-align:center;margin-top:22px;}
+
+  /* Sheets */
+  .overlay{position:fixed;inset:0;background:rgba(80,63,53,.45);z-index:50;display:flex;align-items:flex-end;justify-content:center;animation:fade .2s ease;}
+  @keyframes fade{from{opacity:0;}to{opacity:1;}}
+  .sheet{background:var(--cream);width:100%;max-width:540px;border-radius:26px 26px 0 0;padding:8px 20px 30px;max-height:92vh;overflow-y:auto;}
+  .sheet-handle{width:44px;height:5px;background:var(--line);border-radius:999px;margin:9px auto 18px;}
+  .sheet h2{font-family:var(--serif);font-weight:600;font-size:22px;margin:0 0 6px;}
+  .sheet .hint{font-size:13px;color:var(--brown-soft);margin:0 0 4px;}
+  label{display:block;font-size:12.5px;font-weight:700;color:var(--brown-soft);margin:16px 0 7px;letter-spacing:.2px;}
+  input[type=text],input[type=url],input[type=password]{width:100%;padding:14px;border-radius:13px;border:1px solid var(--line);background:#fff;font-size:16px;color:var(--brown);font-family:inherit;}
+  input:focus{outline:2px solid var(--coral);outline-offset:0;border-color:var(--coral);}
+  .stepper{display:flex;align-items:center;gap:14px;}
+  .stepper button{width:48px;height:48px;border-radius:13px;background:var(--pink-bg);color:var(--coral-deep);font-size:24px;font-weight:700;line-height:1;display:flex;align-items:center;justify-content:center;}
+  .stepper .val{font-family:var(--serif);font-size:26px;font-weight:600;min-width:40px;text-align:center;}
+  .photo-pick{border:2px dashed var(--pink);border-radius:15px;padding:22px;text-align:center;color:var(--coral-deep);font-weight:600;background:var(--pink-bg);cursor:pointer;}
+  .photo-preview{width:100%;aspect-ratio:16/10;object-fit:cover;border-radius:15px;cursor:pointer;}
+  .err{color:var(--coral-deep);font-size:13px;margin-top:8px;font-weight:600;}
+
+  .lightbox{position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px;}
+  .lightbox img{max-width:100%;max-height:100%;border-radius:14px;}
+  svg{flex-shrink:0;}
+</style>
+</head>
+<body>
+<div id="root"><div class="empty"><div class="big">🎁</div>Cargando lista…</div></div>
+
+<script>
+/* ===========================================================
+   CONFIGURACIÓN DE FIREBASE (ya puesta, no hace falta tocar)
+   =========================================================== */
+const firebaseConfig = {
+  apiKey: "AIzaSyBAIac8987dP5Z1tSCtQ798PPskdTnvtgg",
+  authDomain: "lista-regalos-41b76.firebaseapp.com",
+  databaseURL: "https://lista-regalos-41b76-default-rtdb.firebaseio.com",
+  projectId: "lista-regalos-41b76",
+  storageBucket: "lista-regalos-41b76.firebasestorage.app",
+  messagingSenderId: "773966005287",
+  appId: "1:773966005287:web:6a4b20075654459d053a02"
+};
+
+const OWNER_CODE = "1965";   // cambiá este número si querés otro código de dueña
+/* =========================================================== */
+
+let state = { title:"Lista de Regalos", gifts:{} };
+let loaded=false, isOwner=false, confirmId=null, dbRef=null;
+
+const ICON={
+  link:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg>',
+  check:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>',
+  plus:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
+  key:'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="7.5" cy="15.5" r="4.5"/><path d="M10.5 12.5 19 4l2 2-2 2 2 2-3 1"/></svg>',
+  eye:'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>',
+  pencil:'<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>'
+};
+
+function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
+function genId(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7);}
+function normalizeLink(url){var u=(url||"").trim();if(!u)return"";return /^https?:\/\//i.test(u)?u:"https://"+u;}
+function norm(g){
+  var qty=(g.qty&&g.qty>0)?g.qty:1;
+  var taken=(typeof g.reservedCount==="number")?g.reservedCount:(g.reserved?1:0);
+  taken=Math.max(0,Math.min(taken,qty));
+  return {qty:qty,taken:taken};
+}
+
+function compressImage(file,maxW,quality){
+  maxW=maxW||900; quality=quality||0.72;
+  return new Promise(function(resolve,reject){
+    var reader=new FileReader();
+    reader.onload=function(e){
+      var img=new Image();
+      img.onload=function(){
+        var scale=Math.min(1,maxW/img.width);
+        var w=Math.round(img.width*scale), h=Math.round(img.height*scale);
+        var c=document.createElement("canvas"); c.width=w; c.height=h;
+        c.getContext("2d").drawImage(img,0,0,w,h);
+        resolve(c.toDataURL("image/jpeg",quality));
+      };
+      img.onerror=reject; img.src=e.target.result;
+    };
+    reader.onerror=reject; reader.readAsDataURL(file);
+  });
+}
+
+function pipsHtml(taken,qty){
+  if(qty>8) return '<span class="qty-text"><b>'+(qty-taken)+'</b> de '+qty+' sin reservar</span>';
+  var s='<span class="pips">';
+  for(var i=0;i<qty;i++) s+='<span class="pip'+(i<taken?' on':'')+'"></span>';
+  s+='</span>';
+  return s;
+}
+
+function cardHtml(g){
+  var n=norm(g);
+  var complete=n.taken>=n.qty;
+  var h='<div class="card'+(complete?' done':'')+'">';
+  if(g.img){ h+='<img class="gift-img" src="'+g.img+'" alt="'+esc(g.name)+'" data-action="lightbox" data-id="'+g.id+'">'; }
+  h+='<div class="gift-body">';
+  h+='<p class="gift-name">'+esc(g.name)+'</p>';
+  if(g.link){ h+='<a class="gift-link" href="'+esc(g.link)+'" target="_blank" rel="noopener noreferrer">'+ICON.link+' Ver dónde comprarlo</a>'; }
+
+  if(complete){
+    h+='<div class="badge-done">'+ICON.check+(n.qty>1?(' Completo · '+n.qty+' de '+n.qty):' Ya alguien lo va a regalar')+'</div>';
+  } else if(n.qty>1){
+    h+='<div class="qty-row">'+pipsHtml(n.taken,n.qty)+'<span class="qty-text">Faltan <b>'+(n.qty-n.taken)+'</b> de '+n.qty+'</span></div>';
+  }
+
+  if(!isOwner && !complete){
+    if(confirmId===g.id){
+      h+='<div class="btn-row"><button class="btn btn-primary" data-action="reserve-yes" data-id="'+g.id+'">Sí, confirmar</button><button class="btn btn-ghost" data-action="reserve-cancel">Cancelar</button></div>';
+    } else {
+      h+='<button class="btn btn-primary" data-action="reserve-ask" data-id="'+g.id+'">'+(n.qty>1?'Yo regalo uno':'Yo lo regalo')+'</button>';
+    }
+  }
+  if(isOwner){
+    h+='<div class="btn-row"><button class="btn btn-soft" data-action="edit" data-id="'+g.id+'">Editar</button>';
+    if(n.taken>0){ h+='<button class="btn btn-ghost" data-action="release" data-id="'+g.id+'">Liberar uno</button>'; }
+    h+='</div>';
+  }
+  h+='</div></div>';
+  return h;
+}
+
+function renderApp(){
+  var root=document.getElementById("root");
+  if(!loaded){ root.innerHTML='<div class="empty"><div class="big">🎁</div>Cargando lista…</div>'; return; }
+
+  var gifts=Object.keys(state.gifts).map(function(id){
+    return Object.assign({id:id},state.gifts[id]);
+  }).sort(function(a,b){return (a.createdAt||0)-(b.createdAt||0);});
+
+  var available=gifts.filter(function(g){var n=norm(g);return n.taken<n.qty;});
+  var taken=gifts.filter(function(g){var n=norm(g);return n.taken>=n.qty;});
+
+  var h='';
+  // Topbar
+  h+='<div class="topbar"><span class="brand">🎁 Mi lista</span>';
+  h+= isOwner
+    ? '<span class="role-pill owner" data-action="role">'+ICON.key+' Dueña</span>'
+    : '<span class="role-pill" data-action="role">'+ICON.eye+' Invitado</span>';
+  h+='</div>';
+
+  // Hero
+  h+='<header class="hero"><h1 class="hero-title">'+esc(state.title)+
+     (isOwner?'<button class="edit-title" data-action="edit-title" title="Cambiar el nombre">'+ICON.pencil+'</button>':'')+
+     '</h1>';
+  h+='<div class="hero-rule"><span>🎀</span></div>';
+  h+='<p class="hero-sub">Elegí lo que quieras regalar y marcalo. Es anónimo: nadie ve quién eligió qué.</p>';
+  h+='<div class="chips"><span class="chip"><b>'+available.length+'</b> disponibles</span><span class="chip done"><b>'+taken.length+'</b> ya elegidos</span></div>';
+  h+='</header>';
+
+  if(gifts.length===0){
+    h+='<div class="empty"><div class="big">🎀</div>'+(isOwner?'Todavía no cargaste regalos.<br>Tocá el botón de abajo para empezar.':'Todavía no hay regalos en la lista.')+'</div>';
+  }
+
+  if(available.length){
+    h+='<div class="sec-head"><span class="eyebrow">Disponibles</span><span class="bar"></span><span class="sec-count">'+available.length+'</span></div>';
+    available.forEach(function(g){ h+=cardHtml(g); });
+  }
+  if(taken.length){
+    h+='<div class="sec-head"><span class="eyebrow">Ya elegidos</span><span class="bar"></span><span class="sec-count">'+taken.length+'</span></div>';
+    taken.forEach(function(g){ h+=cardHtml(g); });
+  }
+
+  if(!isOwner && gifts.length>0){
+    h+='<p class="small-muted">¿Sos la organizadora? Tocá "Invitado" arriba para entrar en modo dueña.</p>';
+  }
+  if(isOwner){
+    h+='<button class="fab" data-action="add">'+ICON.plus+' Agregar regalo</button>';
+  }
+  root.innerHTML=h;
+}
+
+// --- Firebase ---
+function saveGift(data){
+  var id=data.id||genId();
+  dbRef.child("gifts").child(id).set({
+    name:(data.name||"").trim(),
+    link:normalizeLink(data.link),
+    img:data.img||"",
+    qty:data.qty||1,
+    reservedCount:Math.max(0,Math.min(data.reservedCount||0,data.qty||1)),
+    createdAt:data.createdAt||Date.now()
+  });
+}
+function deleteGift(id){ dbRef.child("gifts").child(id).remove(); }
+function setTitle(t){ dbRef.child("title").set((t||"").trim()||"Lista de Regalos"); }
+
+function claimOne(id){
+  var g=state.gifts[id]; if(!g) return; var n=norm(g);
+  dbRef.child("gifts").child(id).child("reservedCount").transaction(function(cur){
+    var v=(typeof cur==="number")?cur:n.taken;
+    return (v>=n.qty)?v:v+1;
+  });
+}
+function releaseOne(id){
+  var g=state.gifts[id]; if(!g) return; var n=norm(g);
+  dbRef.child("gifts").child(id).child("reservedCount").transaction(function(cur){
+    var v=(typeof cur==="number")?cur:n.taken;
+    return Math.max(0,v-1);
+  });
+}
+
+// --- Overlays ---
+function closeOverlay(){ var o=document.getElementById("overlay"); if(o) o.remove(); }
+
+function openTitleSheet(){
+  closeOverlay();
+  var ov=document.createElement("div"); ov.id="overlay"; ov.className="overlay";
+  ov.innerHTML='<div class="sheet"><div class="sheet-handle"></div><h2>Nombre de la lista</h2><p class="hint">Por ejemplo: "Lista de regalos de Mary".</p><label>Título</label><input type="text" id="t-val" value="'+esc(state.title)+'"><button class="btn btn-primary" id="t-save">Guardar</button><button class="btn btn-ghost" id="t-cancel">Cancelar</button></div>';
+  document.body.appendChild(ov);
+  ov.onclick=function(e){ if(e.target===ov) closeOverlay(); };
+  document.getElementById("t-cancel").onclick=closeOverlay;
+  document.getElementById("t-save").onclick=function(){ setTitle(document.getElementById("t-val").value); closeOverlay(); };
+}
+
+function openGiftSheet(gift){
+  closeOverlay();
+  var editing=!!gift;
+  var cur={img: gift?gift.img||"":"", qty: gift?norm(gift).qty:1};
+  var ov=document.createElement("div"); ov.id="overlay"; ov.className="overlay";
+  ov.innerHTML=
+    '<div class="sheet"><div class="sheet-handle"></div>'+
+    '<h2>'+(editing?'Editar regalo':'Agregar regalo')+'</h2>'+
+    '<label>Nombre del regalo</label>'+
+    '<input type="text" id="g-name" placeholder="Ej: Juego de mate" value="'+(gift?esc(gift.name):'')+'">'+
+    '<label>Link para comprarlo (opcional)</label>'+
+    '<input type="url" id="g-link" placeholder="Pegá un link de Mercado Libre, etc." value="'+(gift?esc(gift.link):'')+'">'+
+    '<label>¿Cuántos querés?</label>'+
+    '<div class="stepper"><button id="q-minus">−</button><span class="val" id="q-val">'+cur.qty+'</span><button id="q-plus">+</button></div>'+
+    '<label>Foto (opcional)</label>'+
+    '<div id="g-photo-area"></div>'+
+    '<input type="file" id="g-file" accept="image/*" style="display:none">'+
+    '<button class="btn btn-primary" id="g-save">'+(editing?'Guardar cambios':'Agregar a la lista')+'</button>'+
+    (editing?'<button class="btn btn-danger" id="g-del">Borrar regalo</button>':'')+
+    '<button class="btn btn-ghost" id="g-cancel">Cancelar</button></div>';
+  document.body.appendChild(ov);
+
+  function renderPhoto(){
+    var area=document.getElementById("g-photo-area");
+    area.innerHTML=cur.img?'<img class="photo-preview" id="g-prev" src="'+cur.img+'">':'<div class="photo-pick" id="g-pick">📷 Tocá para elegir una foto</div>';
+    var p=document.getElementById("g-pick"); if(p) p.onclick=function(){document.getElementById("g-file").click();};
+    var v=document.getElementById("g-prev"); if(v) v.onclick=function(){document.getElementById("g-file").click();};
+  }
+  renderPhoto();
+  function setQty(q){ cur.qty=Math.max(1,Math.min(99,q)); document.getElementById("q-val").textContent=cur.qty; }
+  document.getElementById("q-minus").onclick=function(){ setQty(cur.qty-1); };
+  document.getElementById("q-plus").onclick=function(){ setQty(cur.qty+1); };
+
+  document.getElementById("g-file").onchange=function(e){
+    var f=e.target.files[0]; if(!f) return;
+    document.getElementById("g-photo-area").innerHTML='<div class="photo-pick">Procesando…</div>';
+    compressImage(f).then(function(d){ cur.img=d; renderPhoto(); }).catch(function(){ alert("No se pudo procesar la foto."); renderPhoto(); });
+  };
+  ov.onclick=function(e){ if(e.target===ov) closeOverlay(); };
+  document.getElementById("g-cancel").onclick=closeOverlay;
+  document.getElementById("g-save").onclick=function(){
+    var name=document.getElementById("g-name").value;
+    if(!name.trim()){ alert("Ponele un nombre al regalo."); return; }
+    var prevTaken=gift?norm(gift).taken:0;
+    saveGift({ id:gift?gift.id:null, createdAt:gift?gift.createdAt:null, name:name, link:document.getElementById("g-link").value, img:cur.img, qty:cur.qty, reservedCount:prevTaken });
+    closeOverlay();
+  };
+  if(editing){ document.getElementById("g-del").onclick=function(){ if(confirm("¿Borrar este regalo?")){ deleteGift(gift.id); closeOverlay(); } }; }
+}
+
+function openCodeSheet(){
+  closeOverlay();
+  var ov=document.createElement("div"); ov.id="overlay"; ov.className="overlay";
+  if(isOwner){
+    ov.innerHTML='<div class="sheet"><div class="sheet-handle"></div><h2>Modo dueña</h2><p class="hint">Estás en modo dueña: podés agregar, editar y borrar regalos.</p><button class="btn btn-ghost" id="c-exit">Salir del modo dueña</button><button class="btn btn-soft" id="c-stay">Seguir como dueña</button></div>';
+    document.body.appendChild(ov);
+    ov.onclick=function(e){ if(e.target===ov) closeOverlay(); };
+    document.getElementById("c-stay").onclick=closeOverlay;
+    document.getElementById("c-exit").onclick=function(){ isOwner=false; closeOverlay(); renderApp(); };
+    return;
+  }
+  ov.innerHTML='<div class="sheet"><div class="sheet-handle"></div><h2>Modo dueña</h2><p class="hint">Ingresá el código para editar la lista. Los invitados no lo necesitan.</p><label>Código</label><input type="password" inputmode="numeric" id="c-code" placeholder="• • • •"><div id="c-err"></div><button class="btn btn-primary" id="c-go">Entrar</button><button class="btn btn-ghost" id="c-cancel">Cancelar</button></div>';
+  document.body.appendChild(ov);
+  ov.onclick=function(e){ if(e.target===ov) closeOverlay(); };
+  document.getElementById("c-cancel").onclick=closeOverlay;
+  document.getElementById("c-go").onclick=function(){
+    if(document.getElementById("c-code").value===OWNER_CODE){ isOwner=true; closeOverlay(); renderApp(); }
+    else { document.getElementById("c-err").innerHTML='<p class="err">Código incorrecto.</p>'; }
+  };
+}
+
+function openLightbox(src){
+  closeOverlay();
+  var ov=document.createElement("div"); ov.id="overlay"; ov.className="lightbox";
+  ov.innerHTML='<img src="'+src+'" alt="">';
+  ov.onclick=closeOverlay; document.body.appendChild(ov);
+}
+
+document.body.addEventListener("click",function(e){
+  var t=e.target.closest("[data-action]"); if(!t) return;
+  var a=t.getAttribute("data-action"), id=t.getAttribute("data-id");
+  if(a==="role") openCodeSheet();
+  else if(a==="edit-title") openTitleSheet();
+  else if(a==="add") openGiftSheet(null);
+  else if(a==="edit") openGiftSheet(Object.assign({id:id},state.gifts[id]));
+  else if(a==="release") releaseOne(id);
+  else if(a==="reserve-ask"){ confirmId=id; renderApp(); }
+  else if(a==="reserve-yes"){ claimOne(id); confirmId=null; renderApp(); }
+  else if(a==="reserve-cancel"){ confirmId=null; renderApp(); }
+  else if(a==="lightbox"){ var g=state.gifts[id]; if(g&&g.img) openLightbox(g.img); }
+});
+
+(function boot(){
+  try{
+    firebase.initializeApp(firebaseConfig);
+    dbRef=firebase.database().ref("lista");
+    dbRef.on("value",function(snap){
+      var v=snap.val()||{};
+      state={ title:v.title||"Lista de Regalos", gifts:v.gifts||{} };
+      loaded=true; renderApp();
+    },function(err){
+      loaded=true;
+      document.getElementById("root").innerHTML='<div class="empty"><div class="big">⚠️</div>No se pudo conectar con la base. Revisá las reglas de Firebase.<br><small>'+esc(err&&err.message)+'</small></div>';
+    });
+  }catch(e){
+    document.getElementById("root").innerHTML='<div class="empty"><div class="big">⚠️</div>Error al iniciar. '+esc(e&&e.message)+'</div>';
+  }
+})();
+</script>
+</body>
+</html>
